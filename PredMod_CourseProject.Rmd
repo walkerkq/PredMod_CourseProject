@@ -1,25 +1,32 @@
-Practical Machine Learning Course Project
+Predicting Exercise Class:  
 ===========================
+### Practical Machine Learning Course Project  
+**kwalker**  
+**April 23, 2015**  
 
-## Project Description  
+## Project Goals  
 The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
 
 1. Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
 2. You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
 
+# Data  
+
+The training data for this project are available here:  
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)  
+
+The test data are available here:  
+[https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)  
+
+The data for this project comes from this original source: [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har). 
+
 # Report  
 
-### Model Choice  
-How I built my model  
+**Cross Validation:** I split the training data (pml-training.csv) into 75% train and 25% test data in order to fit a model that will ultimately be used to predict the testing data (pml-testing.csv). Training the model on 75% of the training data and testing against a reserved 25% will help avoid overfitting and ensure that the model does indeed predict well on new data in addition to helping us predict the out of sample error.  
 
-### Cross Validation  
-I split the training data (pml-training.csv) into 75% train and 25% test data in order to fit a model that will ultimately be used to predict the testing data (pml-testing.csv). Training the model on 75% of the training data and testing against a reserved 25% will help avoid overfitting and ensure that the model does indeed predict well on new data in addition to helping us predict the out of sample error.  
+**Out of Sample Error:** The accuracy of my chosen model when applied to my test set is 0.9969 (CI .995, .9983); the estimated out of sample error is 0.0031 or 0.31%.  
 
-### Out of Sample Error  
-The accuracy of my chosen model when applied to my test set is 0.9978 (CI .996, .9989); the estimated out of sample error is 0.0023.  
-
-### Why I chose my model  
-I chose the random forest model because its accuracy (0.9978) greatly exceeded the accuracy of the tree/rpart model (0.5808).    
+**Model choice:** I chose the random forest model because its accuracy (0.9969) greatly exceeded the accuracy of the tree/rpart model (0.5810).    
 
 
 # Code Setup and Cleaning/Transformations   
@@ -29,7 +36,7 @@ library("knitr")
 library("caret")
 library("rattle")
 library("randomForest")
-
+set.seed(12345)
 opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE, fig.height=5, fig.width=5)
 ```
 
@@ -114,22 +121,48 @@ testing <- clean.cut[-inTrain, ]
 # fit model 
 mod1 <- train(as.factor(classe)~., method="rpart", data=training)
 fancyRpartPlot(mod1$finalModel, cex=.6)
+```
 
+Cross validate to check accuracy:  
+
+```{r rpartCV}
 # cross validate
 mod1Predict <- predict(mod1, testing)
 confusionMatrix(testing$classe, mod1Predict)
 ```
-48% accuracy leaves a lot to be desired.  
+58.10% accuracy is not much better than chance.  
 
 ### Random Forest  
 ```{r rf, cache=TRUE}
 # fit model
 mod2 <- randomForest(as.factor(classe)~., data=training)
+```
 
+Cross validate to check accuracy:  
+
+```{r rfCV}
 # cross validate 
 mod2Predict <- predict(mod2, testing)
 confusionMatrix(testing$classe, mod2Predict)
 ```
-99.78% accurate... whoa baby.  
+99.69% accuracy is much better, rendering the random forest the best fitting machine learning model on our test set.  
 
+# Submit  
+Generate test predictions.  
+```{r submission}
+predictions <- predict(mod2, cleanTest)
+```
+
+Generate files to submit for grading.  
+```{r submission2}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predictions)
+```
 

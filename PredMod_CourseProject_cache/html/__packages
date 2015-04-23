@@ -1,0 +1,8 @@
+base
+knitr
+ggplot2
+reshape
+gridExtra
+RColorBrewer
+lattice
+caret

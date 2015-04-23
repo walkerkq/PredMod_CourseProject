@@ -6,3 +6,6 @@ gridExtra
 RColorBrewer
 lattice
 caret
+rattle
+rpart
+randomForest

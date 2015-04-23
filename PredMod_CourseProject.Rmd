@@ -1,23 +1,39 @@
 Practical Machine Learning Course Project
 ===========================
 
+## Project Description  
 The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
 
 1. Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
 2. You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
 
+# Report  
+
+### Model Choice  
+How I built my model  
+
+### Cross Validation  
+I split the training data (pml-training.csv) into 75% train and 25% test data in order to fit a model that will ultimately be used to predict the testing data (pml-testing.csv). Training the model on 75% of the training data and testing against a reserved 25% will help avoid overfitting and ensure that the model does indeed predict well on new data in addition to helping us predict the out of sample error.  
+
+### Out of Sample Error  
+The accuracy of my chosen model when applied to my test set is 0.9978 (CI .996, .9989); the estimated out of sample error is 0.0023.  
+
+### Why I chose my model  
+I chose the random forest model because its accuracy (0.9978) greatly exceeded the accuracy of the tree/rpart model (0.5808).    
+
+
+# Code Setup and Cleaning/Transformations   
+
 ```{r setup, message=FALSE, warning=FALSE}
 library("knitr")
-library("ggplot2")
-library("reshape")
-library("gridExtra")
-library("RColorBrewer")
 library("caret")
+library("rattle")
+library("randomForest")
 
-opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE, fig.height=5, fig.width=12)
+opts_chunk$set(cache=TRUE, message=FALSE, warning=FALSE, fig.height=5, fig.width=5)
 ```
 
-Load in the data.  
+### Load in the data  
 
 ```{r loaddata, cahce=TRUE}
 setwd("/Users/kwalker/git_projects/PredMod_CourseProject/")
@@ -25,7 +41,7 @@ raw_test <- read.csv("pml-testing.csv", na.strings=c("NA", "#DIV/0", ""), string
 raw_train <- read.csv("pml-training.csv", na.strings=c("NA", "#DIV/0", ""), stringsAsFactors=FALSE)
 ```
 
-Clean the data:  
+### Clean the data   
 1. Remove variables that are mostly NAs   
 2. Remove first 6 descriptors (user_name, etc.)  
 3. Change format to numeric for all but classe   
@@ -82,11 +98,38 @@ cleanTest <- cleanTest[ ,colSums(is.na(cleanTest)) == 0]
 cleanTest <- cleanTest[ , !(colnames(cleanTest) %in% collinears)]
 ```
 
-Split the train data into two parts.  
+### Partition the Dataset for Cross Validation
+Split the train data into 75% training and 25% testing.    
 
 ```{r splitdata}
 inTrain <- createDataPartition(y=clean.cut$classe, p=.75, list=FALSE)
 training <- clean.cut[inTrain, ]
 testing <- clean.cut[-inTrain, ]
 ```
+
+# Model Fitting  
+### Trees/rpart  
+
+```{r rpart, cache=TRUE}
+# fit model 
+mod1 <- train(as.factor(classe)~., method="rpart", data=training)
+fancyRpartPlot(mod1$finalModel, cex=.6)
+
+# cross validate
+mod1Predict <- predict(mod1, testing)
+confusionMatrix(testing$classe, mod1Predict)
+```
+48% accuracy leaves a lot to be desired.  
+
+### Random Forest  
+```{r rf, cache=TRUE}
+# fit model
+mod2 <- randomForest(as.factor(classe)~., data=training)
+
+# cross validate 
+mod2Predict <- predict(mod2, testing)
+confusionMatrix(testing$classe, mod2Predict)
+```
+99.78% accurate... whoa baby.  
+
 

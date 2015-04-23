@@ -1,0 +1,96 @@
+Practical Machine Learning Course Project
+===========================
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+1. Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
+2. You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
+
+```{r setup}
+library("knitr")
+library("ggplot2")
+library("reshape")
+library("gridExtra")
+library("RColorBrewer")
+library("caret")
+
+opts_chunk$set(echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE, fig.height=5, fig.width=12)
+percentage <- function(x) round(x, 4)*100 
+```
+
+Load in the data.  
+```{r loaddata}
+raw_test <- read.csv("/Users/kaylinwalker/Desktop/pml-testing.csv", na.strings=c("NA", "#DIV/0", stringsAsFactors=FALSE))
+raw_train <- read.csv("/Users/kaylinwalker/Desktop/pml-training.csv", na.strings=c("NA", "#DIV/0", stringsAsFactors=FALSE))
+```
+
+Clean the data:  
+
+Remove collinear variables. 
+```{r cleandata}
+clean <- raw_train
+# make numeric
+for (i in c(1, 3, 4, 7:159) ) clean[,i] <- as.numeric(clean[,i])
+# remove any collinear variables 
+co <- cor(clean[ ,c(3:4, 7:159)], use="pairwise.complete.obs")
+diag(co) <- 0
+pairs <- NULL
+for ( i in 1:length(co[,1]) ) {
+     for ( x in 1:length(co[1,])) {
+          if (!is.na(co[x,i]) & co[x,i] > .9) {
+               z <- i + 1
+               m <- x + 1
+               rname <- row.names(co[i:z,])[1]
+               cname <- colnames(co[,x:m])[1]
+               pairs <- rbind(pairs, c(rname, cname, co[x,i]))
+          }
+     }
+}
+pairs <- data.frame(pairs, stringsAsFactors=FALSE)
+pairs <- pairs[order(-as.numeric(pairs$X3)),]
+
+collinears <- c("var_total_accel_belt", "var_yaw_belt", "var_pitch_forearm", "roll_arm", 
+          "var_yaw_dumbell", "accel_belt_y", "var_pitch_dumbell", "accel_belt_y", 
+          "var_pitch_arm", "var_pitch_belt", "yaw_dumbell", "gyros_forearm_z", 
+          "var_roll_belt", "accel_belt_y", "avg_yaw_dumbell", "stddev_yaw_forearm", 
+          "var_roll_dumbell", "stddev_yaw_dumbell", "stddev_pitch_dumbell",
+          "min_pitch_belt", "stddev_yaw_arm", "var_yaw_forearm", "min_roll_belt", 
+          "roll_belt", "avg_roll_belt", "stddev_yaw_belt", "stddev_pitch_forearm",
+          "total_accel_belt", "min_pitch_belt", "total_accel_belt", "stddev_pitch_arm", 
+          "yaw_belt", "max_roll_belt", "avg_yaw_belt", "min_yaw_forearm",
+          "max_yaw_forearm", "min_yaw_belt", "max_yaw_dumbell", "min_yaw_dumbell")
+
+clean.nocor <- clean[ , !(colnames(clean) %in% collinears)]
+```
+
+Remove variables with high numbers of NAs (96.8% or more, or 19000/19622 observations).   
+```{r cleandata2}
+# exclude variables with more NAs than data
+# summary(training) - visually select high NA variables to exclude
+# kurtosis_roll_belt thru stddev_pitch_belt 9:22
+# var_accel_arm thru var_yaw_arm 34:40
+# kurtosis_roll_arm thru amplitude_yaw_arm 50:64
+# kurtosis_roll_dumbell thru amplitude_yaw_dumbell 68:82
+# var_accel_dumbell thru var_yaw_dumbell 84:93
+# kurtosis_roll_forearm thru amplitude_yaw_forearm 106:118
+# var_accel_forearm thru avg_yaw_forearm 120:125
+high.NAs <- c(9:22, 34:40, 50:64, 68:82, 85:93, 106:118, 120:125)
+
+clean.cut <- clean.nocor[ ,-high.NAs]
+```
+
+Perform the same transformations on test.  
+```{r cleanTest}
+cleanTest <- raw_test
+for (i in c(1, 3, 4, 7:159) ) cleanTest[,i] <- as.numeric(cleanTest[,i])
+cleanTest.nocor <- cleanTest[ , !(colnames(cleanTest) %in% collinears)]
+cleanTest.cut <- cleanTest.nocor[ ,-high.NAs]
+```
+
+Split the train data into two parts.  
+```{r splitdata}
+inTrain <- createDataPartition(y=clean.cut$classe, p=.75, list=FALSE)
+training <- traincut[inTrain, ]
+testing <- traincut[-inTrain, ]
+```
+
